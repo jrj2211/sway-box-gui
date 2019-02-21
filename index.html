@@ -1,19 +1,330 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="UTF-8">
-    <title>Hello World!</title>
-  </head>
-  <body>
-    <h1>Hello World!</h1>
-    <!-- All of the Node.js APIs are available in this renderer process. -->
-    We are using Node.js <script>document.write(process.versions.node)</script>,
-    Chromium <script>document.write(process.versions.chrome)</script>,
-    and Electron <script>document.write(process.versions.electron)</script>.
+    <head>
+        <meta charset="UTF-8">
+        <title>SwayBox Demo</title>
+        <script src="node_modules\three\build\three.min.js"></script>
+        <script src="node_modules\three\examples\js\libs\inflate.min.js"></script>
+        <script src="node_modules\three\examples\js\loaders\FBXLoader.js"></script>
+        <script src="node_modules\three\examples\js\controls\OrbitControls.js"></script>
+        <script src="assets\js\select.js"></script>
 
-    <script>
-      // You can also require other files to run in this process
-      require('./renderer.js')
-    </script>
-  </body>
+        <style>
+            html, body {
+                margin:0px;
+                padding:0px;
+                overflow: hidden;
+                color:white;
+                font-family: arial;
+
+            }
+            canvas {
+                background-color:#141825;
+                width:100%;
+                height:100%;
+            }
+
+            .info {
+                position:absolute;
+                top:20px;
+                left:20px;
+                background-color:rgba(0,0,0,.5);
+                border-radius:10px;
+                padding:10px;
+                display:grid;
+                grid-template-columns: 1fr;
+                grid-row-gap: 10px;
+                width:200px;
+            }
+
+            .stat {
+                font-size:16px;
+                display:grid;
+                grid-template-columns: 50px 1fr;
+                justify-content: center;
+                align-items: center;
+            }
+
+            .rotation_display {
+                background-color:rgba(0,0,0,.5);
+                border-radius:3px;
+                padding:3px 7px;
+            }
+
+            /* The container must be positioned relative: */
+            .custom-select {
+              position: relative;
+              font-family: Arial;
+              height:40px;
+            }
+
+            .custom-select select {
+              display: none; /*hide original SELECT element: */
+            }
+
+            .select-selected {
+              background-color: DodgerBlue;
+              height:22px;
+              display:grid;
+              align-items: center;
+            }
+
+            /* Style the arrow inside the select element: */
+            .select-selected:after {
+              position: absolute;
+              content: "";
+              top: 18px;
+              right: 10px;
+              width: 0;
+              height: 0;
+              border: 6px solid transparent;
+              border-color: #fff transparent transparent transparent;
+            }
+
+            /* Point the arrow upwards when the select box is open (active): */
+            .select-selected.select-arrow-active:after {
+              border-color: transparent transparent #fff transparent;
+              top: 7px;
+            }
+
+            /* style the items (options), including the selected item: */
+            .select-items div,.select-selected {
+              color: #ffffff;
+              padding: 8px 16px;
+              border: 1px solid transparent;
+              border-color: transparent transparent rgba(0, 0, 0, 0.1) transparent;
+              cursor: pointer;
+            }
+
+            /* Style items (options): */
+            .select-items {
+              position: absolute;
+              background-color: DodgerBlue;
+              top: 100%;
+              left: 0;
+              right: 0;
+              z-index: 99;
+            }
+
+            /* Hide the items when the select box is closed: */
+            .select-hide {
+              display: none;
+            }
+
+            .select-items div:hover, .same-as-selected {
+              background-color: rgba(0, 0, 0, 0.1);
+            }
+
+            #refresh_button {
+                background-image:url('assets/refresh.png');
+                background-color:DodgerBlue;
+                height:40px;
+                width:40px;
+                background-repeat: no-repeat;
+                background-position: center;
+            }
+
+            #refresh_button:hover {
+                background-color:#139ffd;
+                cursor:pointer;
+            }
+
+            #comPorts {
+                width:100%;
+                display: grid;
+                grid-template-columns: auto 40px;
+                grid-column: span 2;
+                grid-gap:10px;
+            }
+
+        </style>
+
+    </head>
+    <body>
+        <div class='info'>
+            <div class='stat'>
+                <div id='comPorts'>
+                    <div class='custom-select'><select id='ports'></select></div>
+                    <div id='refresh_button'></div>
+                </div>
+            </div>
+            <div class='stat'><div>Pan</div><div class='rotation_display' id="pan"></div></div>
+            <div class='stat'><div>Tilt</div><div class='rotation_display' id="tilt"></div></div>
+            <div class='stat'><div>Roll</div><div class='rotation_display' id="roll"></div></div>
+        </div>
+
+        <script>
+            // Load Modules
+            window.$ = window.jQuery = require('jquery');
+            let serialPort = require('serialport');
+            const Readline = serialPort.parsers.Readline;
+
+            // Defines
+            let CALIBRATION = 360 / 10000;
+
+            // General Variables
+            var container, controls;
+            var camera, scene, renderer, light;
+            var cube;
+            var sp;
+
+            var curPan = 0;
+            var curTilt = 0;
+            var curRoll = 0;
+
+
+            function openSerial(port) {
+                if(sp) {
+                    sp.close(function() {
+                        console.log("port closed");
+                        sp = null;
+                        openSerial(port);
+                    });
+                } else {
+                    //initialize serialport with 115200 baudrate.
+                    sp = new serialPort(port, {
+                        baudRate: 115200,
+                    });
+
+                    //parse incoming data line-by-line from serial port.
+                    const parser = sp.pipe(new Readline({ delimiter: '\r' }));
+                    parser.on('data', function(evt) {
+                        var data = evt.split(",");
+                        var pan = parseInt(data[1]) * CALIBRATION;
+                        var tilt = parseInt(data[2]) * CALIBRATION;
+                        var roll = parseInt(data[3]) / 65.535;
+
+                        updateCubeRotation(pan, tilt, roll);
+
+                        document.getElementById("pan").innerHTML = pan.toFixed(4);
+                        document.getElementById("tilt").innerHTML = tilt.toFixed(4);
+                        document.getElementById("roll").innerHTML = roll.toFixed(4);
+                    });
+                }
+            }
+
+            function getSerialPorts() {
+                serialPort.list(function (err, results) {
+                    if (!err) {
+                        var portsSelect = $("#ports");
+
+                        portsSelect.children().remove();
+                        portsSelect.siblings().remove();
+
+                        for(var result of results) {
+                            portsSelect.append("<option>" + result.comName + "</option>");
+                        }
+
+                        portsSelect.change(function() {
+                            openSerial(portsSelect.val());
+                        });
+                        openSerial(portsSelect.val());
+
+                        customSelect();
+                    }
+                });
+            }
+
+            $(document).ready(function() {
+                getSerialPorts();
+
+                $("#refresh_button").on("click", function() {
+                    getSerialPorts();
+                    console.log("refreshed");
+                });
+            });
+
+            init();
+            animate();
+
+            function init() {
+
+            	container = document.createElement( 'div' );
+            	document.body.appendChild( container );
+
+            	camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 2000 );
+            	camera.position.set( 5, 5, 5 );
+
+            	controls = new THREE.OrbitControls( camera );
+            	controls.target.set( 0, 0, 0 );
+            	controls.update();
+
+            	scene = new THREE.Scene();
+            	scene.background = new THREE.Color( 0xa0a0a0 );
+            	scene.fog = new THREE.Fog( 0xa0a0a0, 1 );
+
+            	light = new THREE.HemisphereLight( 0xffffff, 0x444444 );
+            	light.position.set( 0, 200, 0 );
+            	scene.add( light );
+
+            	light = new THREE.DirectionalLight( 0xffffff );
+            	light.position.set( 0, 200, 100 );
+            	light.castShadow = true;
+            	light.shadow.camera.top = 180;
+            	light.shadow.camera.bottom = - 100;
+            	light.shadow.camera.left = - 120;
+            	light.shadow.camera.right = 120;
+            	scene.add( light );
+
+            	var grid = new THREE.GridHelper( 100, 40, 0x000000, 0x000000 );
+            	grid.material.opacity = 0.2;
+            	grid.material.transparent = true;
+            	scene.add( grid );
+
+            	// model
+            	var loader = new THREE.FBXLoader();
+            	loader.load( 'assets/camera.fbx', function ( object ) {
+            		scene.add( object );
+                    cube = object;
+            	} );
+
+            	renderer = new THREE.WebGLRenderer( { antialias: true, alpha: true } );
+            	renderer.setPixelRatio( window.devicePixelRatio );
+            	renderer.setSize( window.innerWidth, window.innerHeight );
+            	renderer.shadowMap.enabled = true;
+            	container.appendChild( renderer.domElement );
+
+            	window.addEventListener( 'resize', onWindowResize, false );
+
+            }
+
+            function onWindowResize() {
+            	camera.aspect = window.innerWidth / window.innerHeight;
+            	camera.updateProjectionMatrix();
+            	renderer.setSize( window.innerWidth, window.innerHeight );
+            }
+
+            function animate() {
+            	requestAnimationFrame( animate );
+            	renderer.render( scene, camera );
+            }
+
+            function updateCubeRotation(pan, tilt, roll) {
+                if(cube && !isNaN(pan) && !isNaN(tilt) && !isNaN(roll)) {
+
+                    // Limit pan
+                    if(pan < 45 && pan > -45) {
+                        cube.rotateX(THREE.Math.degToRad(pan - curPan));
+                        curPan = pan;
+                    }
+
+                    // Limit tilt
+                    if(tilt < 35 && tilt > -35) {
+                        cube.rotateZ(THREE.Math.degToRad(tilt - curTilt));
+                        curTilt = tilt;
+                    }
+
+                    // Unlimited roll
+                    cube.rotateY(THREE.Math.degToRad(roll - curRoll));
+                    curRoll = roll;
+                }
+            }
+
+        </script>
+
+        <script>
+            // You can also require other files to run in this process
+            require('./renderer.js');
+        </script>
+    </body>
 </html>
