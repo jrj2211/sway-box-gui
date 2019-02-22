@@ -32,6 +32,9 @@ function customSelect() {
 							y[k].removeAttribute("class");
 						}
 						this.setAttribute("class", "same-as-selected");
+
+						$(s).change();
+
 						break;
 					}
 				}

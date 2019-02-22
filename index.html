@@ -3,10 +3,10 @@
     <head>
         <meta charset="UTF-8">
         <title>SwayBox Demo</title>
-        <script src="node_modules\three\build\three.min.js"></script>
-        <script src="node_modules\three\examples\js\libs\inflate.min.js"></script>
-        <script src="node_modules\three\examples\js\loaders\FBXLoader.js"></script>
-        <script src="node_modules\three\examples\js\controls\OrbitControls.js"></script>
+        <script src="assets\js\three.min.js"></script>
+        <script src="assets\js\inflate.min.js"></script>
+        <script src="assets\js\FBXLoader.js"></script>
+        <script src="assets\js\OrbitControls.js"></script>
         <script src="assets\js\select.js"></script>
 
         <style>
@@ -55,6 +55,7 @@
             .custom-select {
               position: relative;
               font-family: Arial;
+              font-size:14px;
               height:40px;
             }
 
@@ -148,9 +149,9 @@
                     <div id='refresh_button'></div>
                 </div>
             </div>
-            <div class='stat'><div>Pan</div><div class='rotation_display' id="pan"></div></div>
-            <div class='stat'><div>Tilt</div><div class='rotation_display' id="tilt"></div></div>
-            <div class='stat'><div>Roll</div><div class='rotation_display' id="roll"></div></div>
+            <div class='stat'><div>Pan</div><div class='rotation_display' id="pan">0</div></div>
+            <div class='stat'><div>Tilt</div><div class='rotation_display' id="tilt">0</div></div>
+            <div class='stat'><div>Roll</div><div class='rotation_display' id="roll">0</div></div>
         </div>
 
         <script>
@@ -174,32 +175,39 @@
 
 
             function openSerial(port) {
-                if(sp) {
-                    sp.close(function() {
-                        console.log("port closed");
-                        sp = null;
-                        openSerial(port);
-                    });
-                } else {
-                    //initialize serialport with 115200 baudrate.
-                    sp = new serialPort(port, {
-                        baudRate: 115200,
-                    });
+                if(port != "0") {
+                    if(sp) {
+                        if(sp.path != port) {
+                            sp.close(function(err) {});
+                            openSerial(port);
+                        }
+                    } else {
+                        console.log("Opening on port: " + port);
+                        //initialize serialport with 115200 baudrate.
+                        sp = new serialPort(port, {
+                            baudRate: 115200,
+                        });
 
-                    //parse incoming data line-by-line from serial port.
-                    const parser = sp.pipe(new Readline({ delimiter: '\r' }));
-                    parser.on('data', function(evt) {
-                        var data = evt.split(",");
-                        var pan = parseInt(data[1]) * CALIBRATION;
-                        var tilt = parseInt(data[2]) * CALIBRATION;
-                        var roll = parseInt(data[3]) / 65.535;
+                        //parse incoming data line-by-line from serial port.
+                        const parser = sp.pipe(new Readline({ delimiter: '\r' }));
+                        parser.on('data', function(evt) {
+                            var data = evt.split(",");
+                            var pan = parseInt(data[1]) * CALIBRATION;
+                            var tilt = parseInt(data[2]) * CALIBRATION;
+                            var roll = parseInt(data[4]) / 65.535;
 
-                        updateCubeRotation(pan, tilt, roll);
+                            updateCubeRotation(pan, tilt, roll);
 
-                        document.getElementById("pan").innerHTML = pan.toFixed(4);
-                        document.getElementById("tilt").innerHTML = tilt.toFixed(4);
-                        document.getElementById("roll").innerHTML = roll.toFixed(4);
-                    });
+                            document.getElementById("pan").innerHTML = pan.toFixed(4);
+                            document.getElementById("tilt").innerHTML = tilt.toFixed(4);
+                            document.getElementById("roll").innerHTML = roll.toFixed(4);
+                        });
+
+                        sp.on("close", function() {
+                            console.log("Port closed.");
+                            sp = null;
+                        });
+                    }
                 }
             }
 
@@ -211,14 +219,20 @@
                         portsSelect.children().remove();
                         portsSelect.siblings().remove();
 
+                        portsSelect.append("<option value='0'>Select Device</option>");
+
                         for(var result of results) {
-                            portsSelect.append("<option>" + result.comName + "</option>");
+                            var selected = "";
+
+                            if(sp != null && result.comName == sp.path) {
+                                selected = "selected='selected'";
+                            }
+                            portsSelect.append("<option " + selected + " value='" + result.comName + "'>" + result.comName + "</option>");
                         }
 
-                        portsSelect.change(function() {
+                        portsSelect.on("change", function() {
                             openSerial(portsSelect.val());
                         });
-                        openSerial(portsSelect.val());
 
                         customSelect();
                     }
@@ -230,7 +244,6 @@
 
                 $("#refresh_button").on("click", function() {
                     getSerialPorts();
-                    console.log("refreshed");
                 });
             });
 
@@ -317,6 +330,8 @@
                     // Unlimited roll
                     cube.rotateY(THREE.Math.degToRad(roll - curRoll));
                     curRoll = roll;
+
+                    console.log(cube.quaternion);
                 }
             }
 
