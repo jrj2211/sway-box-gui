@@ -1,0 +1,127 @@
+html, body {
+    margin:0px;
+    padding:0px;
+    overflow: hidden;
+    color:white;
+    font-family: arial;
+
+}
+canvas {
+    background-color:#141825;
+    width:100%;
+    height:100%;
+}
+
+.info {
+    position:absolute;
+    top:20px;
+    left:20px;
+    background-color:rgba(0,0,0,.5);
+    border-radius:10px;
+    padding:10px;
+    display:grid;
+    grid-template-columns: 1fr;
+    grid-row-gap: 10px;
+    width:200px;
+}
+
+.stat {
+    font-size:16px;
+    display:grid;
+    grid-template-columns: 50px 1fr;
+    justify-content: center;
+    align-items: center;
+}
+
+.rotation_display {
+    background-color:rgba(0,0,0,.5);
+    border-radius:3px;
+    padding:3px 7px;
+}
+
+/* The container must be positioned relative: */
+.custom-select {
+  position: relative;
+  font-family: Arial;
+  font-size:14px;
+  height:40px;
+}
+
+.custom-select select {
+  display: none; /*hide original SELECT element: */
+}
+
+.select-selected {
+  background-color: DodgerBlue;
+  height:22px;
+  display:grid;
+  align-items: center;
+}
+
+/* Style the arrow inside the select element: */
+.select-selected:after {
+  position: absolute;
+  content: "";
+  top: 18px;
+  right: 10px;
+  width: 0;
+  height: 0;
+  border: 6px solid transparent;
+  border-color: #fff transparent transparent transparent;
+}
+
+/* Point the arrow upwards when the select box is open (active): */
+.select-selected.select-arrow-active:after {
+  border-color: transparent transparent #fff transparent;
+  top: 7px;
+}
+
+/* style the items (options), including the selected item: */
+.select-items div,.select-selected {
+  color: #ffffff;
+  padding: 8px 16px;
+  border: 1px solid transparent;
+  border-color: transparent transparent rgba(0, 0, 0, 0.1) transparent;
+  cursor: pointer;
+}
+
+/* Style items (options): */
+.select-items {
+  position: absolute;
+  background-color: DodgerBlue;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 99;
+}
+
+/* Hide the items when the select box is closed: */
+.select-hide {
+  display: none;
+}
+
+.select-items div:hover, .same-as-selected {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+#refresh_button {
+    background-image:url('../refresh.png');
+    background-color:DodgerBlue;
+    height:40px;
+    width:40px;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+#refresh_button:hover {
+    background-color:#139ffd;
+    cursor:pointer;
+}
+
+#comPorts {
+    width:100%;
+    display: grid;
+    grid-template-columns: auto 40px;
+    grid-column: span 2;
+    grid-gap:10px;
+}
