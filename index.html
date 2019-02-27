@@ -32,7 +32,7 @@
             const Readline = serialPort.parsers.Readline;
 
             // Defines
-            let CALIBRATION = 360 / 10000;
+            let CALIBRATION = 360 / 200000;
 
             // General Variables
             var container, controls;
@@ -62,7 +62,7 @@
                             var data = evt.split(",");
                             var pan = parseInt(data[1]) * CALIBRATION;
                             var tilt = parseInt(data[2]) * CALIBRATION;
-                            var roll = parseInt(data[3]) * CALIBRATION;
+                            var roll = parseInt(data[3]) * CALIBRATION * 3;
 
                             updateCubeRotation(pan, tilt, roll);
 
